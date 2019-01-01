@@ -23,6 +23,15 @@ var AudioRecorder = {
       }
     );
 
+    if (this.progressSubscriptionBackground) this.progressSubscriptionBackground.remove();
+    this.progressSubscriptionBackground = NativeAppEventEmitter.addListener('recordingProgressBackground',
+      (data) => {
+        if (this.onProgress) {
+          this.onProgress(data);
+        }
+      }
+    );
+
     if (this.finishedSubscription) this.finishedSubscription.remove();
     this.finishedSubscription = NativeAppEventEmitter.addListener('recordingFinished',
       (data) => {
@@ -92,6 +101,7 @@ var AudioRecorder = {
   },
   removeListeners: function() {
     if (this.progressSubscription) this.progressSubscription.remove();
+    if (this.progressSubscriptionBackground) this.progressSubscriptionBackground.remove();
     if (this.finishedSubscription) this.finishedSubscription.remove();
   },
 };

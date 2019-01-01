@@ -14,6 +14,7 @@
 #import <AVFoundation/AVFoundation.h>
 
 NSString *const AudioRecorderEventProgress = @"recordingProgress";
+NSString *const AudioRecorderEventProgressBackground = @"recordingProgressBackground";
 NSString *const AudioRecorderEventFinished = @"recordingFinished";
 
 @implementation AudioRecorderManager {
@@ -21,6 +22,7 @@ NSString *const AudioRecorderEventFinished = @"recordingFinished";
   AVAudioRecorder *_audioRecorder;
 
   NSTimeInterval _currentTime;
+  NSTimer *_progressUpdateTimerBackground;
   id _progressUpdateTimer;
   int _progressUpdateInterval;
   NSDate *_prevProgressUpdateTime;
@@ -60,12 +62,43 @@ RCT_EXPORT_MODULE();
       }
       [self.bridge.eventDispatcher sendAppEventWithName:AudioRecorderEventProgress body:body];
 
-    _prevProgressUpdateTime = [NSDate date];
+      _prevProgressUpdateTime = [NSDate date];
   }
 }
 
+- (void)sendProgressUpdateBackground {
+    if (_audioRecorder && _audioRecorder.isRecording) {
+        _currentTime = _audioRecorder.currentTime;
+    } else {
+        return;
+    }
+    
+    if (_prevProgressUpdateTime == nil ||
+        (([_prevProgressUpdateTime timeIntervalSinceNow] * -1000.0) >= _progressUpdateInterval)) {
+        NSMutableDictionary *body = [[NSMutableDictionary alloc] init];
+        [body setObject:[NSNumber numberWithFloat:_currentTime] forKey:@"currentTime"];
+        if (_meteringEnabled) {
+            [_audioRecorder updateMeters];
+            float _currentMetering = [_audioRecorder averagePowerForChannel: 0];
+            [body setObject:[NSNumber numberWithFloat:_currentMetering] forKey:@"currentMetering"];
+            
+            float _currentPeakMetering = [_audioRecorder peakPowerForChannel:0];
+            [body setObject:[NSNumber numberWithFloat:_currentPeakMetering] forKey:@"currentPeakMetering"];
+        }
+        [self.bridge.eventDispatcher sendAppEventWithName:AudioRecorderEventProgressBackground body:body];
+
+        _prevProgressUpdateTime = [NSDate date];
+    }
+}
+
++ (BOOL)requiresMainQueueSetup{
+    return YES;
+}
+
+
 - (void)stopProgressTimer {
   [_progressUpdateTimer invalidate];
+  [_progressUpdateTimerBackground invalidate];
 }
 
 - (void)startProgressTimer {
@@ -74,8 +107,12 @@ RCT_EXPORT_MODULE();
 
   [self stopProgressTimer];
 
-  _progressUpdateTimer = [CADisplayLink displayLinkWithTarget:self selector:@selector(sendProgressUpdate)];
-  [_progressUpdateTimer addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+    _progressUpdateTimer = [CADisplayLink displayLinkWithTarget:self selector:@selector(sendProgressUpdate)];
+   [_progressUpdateTimer addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+
+  // This timer will run even if the phone is locked. Every 1 second
+  _progressUpdateTimerBackground = [NSTimer timerWithTimeInterval:1 target:self selector:@selector(sendProgressUpdate) userInfo:nil repeats:YES];
+  [[NSRunLoop mainRunLoop] addTimer:_progressUpdateTimerBackground forMode:NSDefaultRunLoopMode];
 }
 
 - (void)audioRecorderDidFinishRecording:(AVAudioRecorder *)recorder successfully:(BOOL)flag {
