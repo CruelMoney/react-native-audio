@@ -106,7 +106,7 @@ RCT_EXPORT_MODULE();
     [_progressUpdateTimer addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
     
     // This timer will run even if the phone is locked. Every 1 second
-    _progressUpdateTimerBackground = [NSTimer timerWithTimeInterval:1 target:self selector:@selector(sendProgressUpdate) userInfo:nil repeats:YES];
+    _progressUpdateTimerBackground = [NSTimer timerWithTimeInterval:1 target:self selector:@selector(sendProgressUpdateBackground) userInfo:nil repeats:YES];
     [[NSRunLoop mainRunLoop] addTimer:_progressUpdateTimerBackground forMode:NSDefaultRunLoopMode];
 }
 
