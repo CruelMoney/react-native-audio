@@ -24,8 +24,9 @@ var AudioRecorder = {
 			}
 		);
 
-		if (this.progressSubscriptionBackground)
+		if (this.progressSubscriptionBackground) {
 			this.progressSubscriptionBackground.remove();
+		}
 		this.progressSubscriptionBackground = NativeAppEventEmitter.addListener(
 			"recordingProgressBackground",
 			data => {
